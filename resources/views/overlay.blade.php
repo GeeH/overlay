@@ -35,7 +35,7 @@
 </head>
 <body>
 
-<div id="chrome" style="width: 1920px; height: 1080px;" class="bg-gray-100 absolute">
+<div id="chrome" style="width: 1920px; height: 1080px;" class="absolute">
     <div class="text-3xl p-16 animate__animated animate__bounceOut w-full text-center animate__delay-2s">
         Loaded {{ $user->username }}</div>
     @foreach($panes as $pane)
