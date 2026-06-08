@@ -3,17 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pane;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class OverlayController extends Controller
 {
 
-    public function __invoke(Request $request)
+    public function __invoke(Request $request, string $username)
     {
-        $panes = Pane::where('user_id', '=', 1)
+        $user = User::where('username', '=', $username)
+            ->firstOrFail();
+
+        $panes = Pane::where('user_id', '=', $user->id)
             ->get();
 
-        return view('overlay', ['panes' => $panes, 'debug' => $request->get('debug', false) !== false]);
+        return view('overlay', ['user' => $user, 'panes' => $panes, 'debug' => $request->get('debug', false) !== false]);
     }
 }

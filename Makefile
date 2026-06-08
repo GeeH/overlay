@@ -3,6 +3,9 @@
 up:
 	./vendor/bin/sail up -d --wait
 
+down:
+	./vendor/bin/sail down
+
 db:
 	./vendor/bin/sail artisan migrate:fresh --seed
 

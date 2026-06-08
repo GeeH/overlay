@@ -21,12 +21,14 @@ return new class extends Migration {
             $table->integer('left')->default(0);
             $table->integer('width')->default(0);
             $table->integer('height')->default(0);
-            $table->string('bgColour');
+            $table->string('bgColour')->default('transparent');
             $table->string('animationIn');
-            $table->string('animationOut');
+            $table->string('animationOut')->default('');
             $table->integer('showFor');
-            $table->string('extraCss');
-            $table->string('extraClasses');
+            $table->string('extraCss')->default('');
+            $table->string('extraClasses')->default('');
+            $table->boolean('alwaysShown')->default(false);
+            $table->integer('triggered')->default(0);
             $table->timestamps();
         });
     }

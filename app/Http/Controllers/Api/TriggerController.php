@@ -24,9 +24,14 @@ class TriggerController extends Controller
         } catch (\Exception $e) {
             return new JsonResponse(['error' => $e->getMessage()], 404);
         }
-
         OverlayTriggerEvent::dispatch($pane->toArray());
-        Log::info('Triggering Response');
+        Log::info('Triggering Response for pane ' . $pane->toJson());
+
+        $pane->triggered++;
+
+        unset($pane->elementId);
+        $pane->save();
+
         return new JsonResponse('OK');
     }
 }
