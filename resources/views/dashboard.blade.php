@@ -21,6 +21,13 @@
             </button>
         </form>
 
+        <div class="mb-4 flex justify-end">
+            <a href="{{ route('create-pane') }}"
+               class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                + New Overlay
+            </a>
+        </div>
+
         <ul role="list" class="w-full mt-3 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
             @foreach($panes as $pane)
                 <li class="col-span-1 flex rounded-md shadow-sm">

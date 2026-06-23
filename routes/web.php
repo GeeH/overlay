@@ -17,6 +17,11 @@ Route::middleware('auth')->group(function () {
     Route::patch('/settings', \App\Http\Controllers\SettingsController::class)
         ->name('settings.update');
 
+    Route::get('/pane/create', [\App\Http\Controllers\AddEditPaneController::class, 'create'])
+        ->name('create-pane');
+    Route::post('/pane', [\App\Http\Controllers\AddEditPaneController::class, 'store'])
+        ->name('store-pane');
+
     Route::get('/pane/{paneId}/edit', [\App\Http\Controllers\AddEditPaneController::class, 'show'])
         ->name('add-edit-pane');
     Route::patch('/pane/{paneId}/edit', [\App\Http\Controllers\AddEditPaneController::class, 'update'])

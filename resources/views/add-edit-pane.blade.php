@@ -1,13 +1,70 @@
 <x-app-layout>
-    <div class="w-3/4 flex flex-col self-center mt-8 bg-gray-50 mx-auto p-8">
+    <div class="w-3/4 flex flex-col self-center mt-8 bg-gray-50 mx-auto p-8"
+         x-data="paneEditor(@js([
+             'text'     => old('text',     $pane->text),
+             'colour'   => old('colour',   $pane->colour),
+             'bgColour' => old('bgColour', $pane->bgColour),
+             'size'     => old('size',     $pane->size),
+             'font'     => old('font',     $pane->font),
+             'top'      => (int) old('top',    $pane->top),
+             'left'     => (int) old('left',   $pane->left),
+             'width'    => (int) old('width',  $pane->width),
+             'height'   => (int) old('height', $pane->height),
+         ]))"
+         @mousemove.window="onMouseMove($event)"
+         @mouseup.window="onMouseUp()">
 
         @if(session('status'))
             <div class="mb-4 w-full rounded-md bg-green-50 px-3 py-1.5 text-sm text-green-700">{{ session('status') }}</div>
         @endif
 
-        <form method="POST" action="{{ route('update-pane', $pane->id) }}" class="w-full">
+        {{-- Visual Preview --}}
+        <div class="mb-10">
+            <div class="mb-3">
+                <h2 class="text-base font-semibold leading-7 text-gray-900">Preview</h2>
+                <p class="text-sm leading-6 text-gray-600">Drag the overlay element to reposition it. Drag the corner handle to resize.</p>
+            </div>
+            <div class="relative w-full aspect-video overflow-hidden rounded-lg bg-gray-900 border border-gray-700"
+                 x-ref="canvas">
+                {{-- Scaled inner 1920×1080 canvas --}}
+                <div :style="`transform: scale(${scale}); transform-origin: top left; width: 1920px; height: 1080px; position: absolute; top: 0; left: 0;`">
+                    {{-- Rule-of-thirds guide lines --}}
+                    <div class="absolute inset-0 pointer-events-none">
+                        <div class="absolute top-0 bottom-0 border-r border-white/10" style="left:33.33%"></div>
+                        <div class="absolute top-0 bottom-0 border-r border-white/10" style="left:66.66%"></div>
+                        <div class="absolute left-0 right-0 border-b border-white/10" style="top:33.33%"></div>
+                        <div class="absolute left-0 right-0 border-b border-white/10" style="top:66.66%"></div>
+                        <div class="absolute top-0 bottom-0 border-r border-white/5" style="left:50%"></div>
+                        <div class="absolute left-0 right-0 border-b border-white/5" style="top:50%"></div>
+                    </div>
+
+                    {{-- The pane element --}}
+                    <div x-ref="paneEl"
+                         class="absolute text-center select-none cursor-move outline outline-1 outline-indigo-400/40 hover:outline-indigo-400/80"
+                         :class="{ 'outline-indigo-400 !outline-2': dragging }"
+                         :style="paneStyle"
+                         @mousedown.prevent="startDrag($event)">
+                        <span x-text="previewText || '(no text)'"></span>
+                        {{-- Resize handle --}}
+                        <div class="absolute -bottom-1 -right-1 w-3 h-3 bg-indigo-500 rounded-sm cursor-se-resize opacity-70 hover:opacity-100"
+                             @mousedown.prevent.stop="startResize($event)"></div>
+                    </div>
+                </div>
+
+                {{-- Position / size readout HUD --}}
+                <div class="absolute bottom-2 right-3 text-xs text-white/40 font-mono pointer-events-none select-none"
+                     x-text="positionReadout"></div>
+
+                {{-- Canvas size label --}}
+                <div class="absolute top-2 left-3 text-xs text-white/25 font-mono pointer-events-none select-none">1920 × 1080</div>
+            </div>
+        </div>
+
+        <form method="POST"
+              action="{{ $pane->exists ? route('update-pane', $pane->id) : route('store-pane') }}"
+              class="w-full">
             @csrf
-            @method('PATCH')
+            @if($pane->exists) @method('PATCH') @endif
 
             <div class="space-y-12">
 
@@ -19,6 +76,7 @@
                     </div>
 
                     <div class="grid max-w-2xl grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-6 md:col-span-2">
+                        @if($pane->exists)
                         <div class="sm:col-span-1">
                             <label class="block text-sm font-medium leading-6 text-gray-900">ID</label>
                             <div class="mt-2">
@@ -27,8 +85,9 @@
                                        value="{{ $pane->id }}">
                             </div>
                         </div>
+                        @endif
 
-                        <div class="sm:col-span-5">
+                        <div class="{{ $pane->exists ? 'sm:col-span-5' : 'sm:col-span-6' }}">
                             <label for="name" class="block text-sm font-medium leading-6 text-gray-900">Name</label>
                             <div class="mt-2">
                                 <input type="text" name="name" id="name"
@@ -52,7 +111,7 @@
                             <div class="mt-2">
                                 <input type="text" name="text" id="text"
                                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                       value="{{ old('text', $pane->text) }}">
+                                       x-model="previewText">
                                 @error('text')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                         </div>
@@ -72,7 +131,7 @@
                             <div class="mt-2">
                                 <input type="text" name="colour" id="colour"
                                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                       value="{{ old('colour', $pane->colour) }}">
+                                       x-model="colour">
                                 @error('colour')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                         </div>
@@ -82,7 +141,7 @@
                             <div class="mt-2">
                                 <input type="text" name="bgColour" id="bgColour"
                                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                       value="{{ old('bgColour', $pane->bgColour) }}">
+                                       x-model="bgColour">
                                 @error('bgColour')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                         </div>
@@ -92,7 +151,7 @@
                             <div class="mt-2">
                                 <input type="text" name="size" id="size" placeholder="48px"
                                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                       value="{{ old('size', $pane->size) }}">
+                                       x-model="size">
                                 @error('size')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                         </div>
@@ -102,7 +161,7 @@
                             <div class="mt-2">
                                 <input type="text" name="font" id="font" placeholder="Leave blank for default"
                                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                       value="{{ old('font', $pane->font) }}">
+                                       x-model="font">
                             </div>
                         </div>
                     </div>
@@ -121,7 +180,7 @@
                             <div class="mt-2">
                                 <input type="number" name="top" id="top"
                                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                       value="{{ old('top', $pane->top) }}">
+                                       x-model.number="top">
                                 @error('top')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                         </div>
@@ -131,7 +190,7 @@
                             <div class="mt-2">
                                 <input type="number" name="left" id="left"
                                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                       value="{{ old('left', $pane->left) }}">
+                                       x-model.number="left">
                                 @error('left')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                         </div>
@@ -141,7 +200,7 @@
                             <div class="mt-2">
                                 <input type="number" name="width" id="width"
                                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                       value="{{ old('width', $pane->width) }}">
+                                       x-model.number="width">
                             </div>
                         </div>
 
@@ -150,7 +209,7 @@
                             <div class="mt-2">
                                 <input type="number" name="height" id="height"
                                        class="block w-full rounded-md border-0 py-1.5 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
-                                       value="{{ old('height', $pane->height) }}">
+                                       x-model.number="height">
                             </div>
                         </div>
                     </div>
@@ -239,7 +298,7 @@
                 <a href="{{ route('dashboard') }}" class="text-sm font-semibold leading-6 text-gray-900">Cancel</a>
                 <button type="submit"
                         class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">
-                    Save
+                    {{ $pane->exists ? 'Save' : 'Create' }}
                 </button>
             </div>
         </form>
