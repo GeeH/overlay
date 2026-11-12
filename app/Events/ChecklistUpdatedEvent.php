@@ -9,7 +9,8 @@ use Illuminate\Foundation\Events\Dispatchable;
 
 /**
  * Tells the overlay to re-render a checklist. $action is one of
- * added, done, undone, moved, removed, reset, or updated; $itemId names the item it applies to.
+ * added, done, undone, moved, removed, reset, updated, or toggled (slide out or back in);
+ * $itemId names the item it applies to.
  */
 class ChecklistUpdatedEvent implements ShouldBroadcastNow
 {

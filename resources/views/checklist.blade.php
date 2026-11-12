@@ -13,13 +13,21 @@
             <section class="lg:col-span-3">
                 <div class="mb-3 flex items-center justify-between">
                     <h2 class="text-xl font-semibold text-gray-900">{{ $checklist->name }}</h2>
-                    @if($checklist->items->contains('done', true))
-                        <form method="POST" action="{{ route('checklists.reset', $checklist->id) }}"
-                              onsubmit="return confirm('Untick every item?')">
+                    <div class="flex items-center gap-4">
+                        @if($checklist->items->contains('done', true))
+                            <form method="POST" action="{{ route('checklists.reset', $checklist->id) }}"
+                                  onsubmit="return confirm('Untick every item?')">
+                                @csrf
+                                <button type="submit" class="text-sm font-semibold text-gray-500 hover:text-gray-900">Untick all</button>
+                            </form>
+                        @endif
+                        <form method="POST" action="{{ route('checklists.visibility', $checklist->id) }}">
                             @csrf
-                            <button type="submit" class="text-sm font-semibold text-gray-500 hover:text-gray-900">Untick all</button>
+                            <button type="submit" class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50">
+                                Show / hide on overlay
+                            </button>
                         </form>
-                    @endif
+                    </div>
                 </div>
 
                 <ul class="divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200">
@@ -78,8 +86,8 @@
             @if($checklist->exists)
                 <h2 class="mb-3 text-xl font-semibold text-gray-900">On the overlay</h2>
                 <div class="mb-8 overflow-hidden rounded-lg bg-gray-800 p-6">
-                    {{-- Overlay pixels, shrunk to fit the column --}}
-                    <div style="width: {{ $checklist->width }}px; zoom: {{ min(1, 440 / $checklist->width) }};">
+                    {{-- Overlay pixels at the checklist's size, shrunk to fit the column --}}
+                    <div style="width: {{ $checklist->width * 100 / $checklist->scale }}px; zoom: {{ min(1, 440 / $checklist->width) * $checklist->scale / 100 }};">
                         @include('checklist-themes.' . $checklist->theme, ['checklist' => $checklist])
                     </div>
                 </div>
@@ -110,14 +118,23 @@
                     @error('theme')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                 </div>
 
-                <div class="grid grid-cols-3 gap-4">
-                    @foreach(['top' => 'Top', 'left' => 'Left', 'width' => 'Width'] as $field => $label)
+                <div class="grid grid-cols-2 gap-4">
+                    @foreach(['top' => 'Top (px)', 'left' => 'Left (px)', 'width' => 'Width (px)', 'scale' => 'Size (%)'] as $field => $label)
                         <div>
-                            <label for="{{ $field }}" class="block text-sm font-medium leading-6 text-gray-900">{{ $label }} (px)</label>
+                            <label for="{{ $field }}" class="block text-sm font-medium leading-6 text-gray-900">{{ $label }}</label>
                             <input type="number" name="{{ $field }}" id="{{ $field }}" required class="{{ $input }} mt-2" value="{{ old($field, $checklist->$field) }}">
                             @error($field)<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
                     @endforeach
+                </div>
+
+                <div class="flex gap-3">
+                    <input type="checkbox" name="auto_hide" id="auto_hide" value="1" @checked(old('auto_hide', $checklist->auto_hide))
+                           class="mt-1 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600">
+                    <label for="auto_hide" class="text-sm leading-6">
+                        <span class="font-medium text-gray-900">Auto-hide</span>
+                        <span class="block text-gray-500">Slide off the nearest screen edge after 45 seconds without changes. Any change brings it back.</span>
+                    </label>
                 </div>
 
                 <div class="flex items-center justify-end gap-x-6">

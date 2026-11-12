@@ -66,6 +66,30 @@ test('moving an item reorders the overlay', function () {
     Event::assertNotDispatched(ChecklistUpdatedEvent::class);
 });
 
+test('auto-hide is saved from its checkbox and the toggle flips the overlay', function () {
+    Event::fake([ChecklistUpdatedEvent::class]);
+    $user = User::factory()->create();
+    $checklist = checklistFor($user);
+    $settings = ['name' => 'Tonight', 'theme' => 'enshrouded', 'top' => 10, 'left' => 20, 'width' => 500, 'scale' => 100];
+
+    $this->actingAs($user)->patch(route('checklists.update', $checklist->id), $settings + ['auto_hide' => '1']);
+    expect($checklist->fresh()->auto_hide)->toBeTrue();
+    $panelTag = '/<div id="checklist-' . $checklist->id . '"[^>]*data-auto-hide/';
+    expect($this->get(route('overlay', $user->username))->getContent())->toMatch($panelTag);
+
+    // An unticked checkbox is simply missing from the form.
+    $this->actingAs($user)->patch(route('checklists.update', $checklist->id), $settings);
+    expect($checklist->fresh()->auto_hide)->toBeFalse();
+    expect($this->get(route('overlay', $user->username))->getContent())->not->toMatch($panelTag);
+
+    $this->actingAs($user)->post(route('checklists.visibility', $checklist->id))
+        ->assertRedirect(route('checklists.show', $checklist->id));
+    Event::assertDispatched(ChecklistUpdatedEvent::class, fn ($event) => $event->action === 'toggled'
+        && $event->checklistId === $checklist->id);
+
+    $this->actingAs(User::factory()->create())->post(route('checklists.visibility', $checklist->id))->assertNotFound();
+});
+
 test('another user cannot change a checklist', function () {
     $owner = User::factory()->create();
     $checklist = checklistFor($owner);
@@ -82,10 +106,29 @@ test('a checklist only accepts themes that have a view', function () {
     $user = User::factory()->create();
 
     $this->actingAs($user)
-        ->post(route('checklists.store'), ['name' => 'X', 'theme' => '../welcome', 'top' => 0, 'left' => 0, 'width' => 400])
+        ->post(route('checklists.store'), ['name' => 'X', 'theme' => '../welcome', 'top' => 0, 'left' => 0, 'width' => 400, 'scale' => 100])
         ->assertSessionHasErrors('theme');
 
     $this->actingAs($user)
-        ->post(route('checklists.store'), ['name' => 'X', 'theme' => 'enshrouded', 'top' => 0, 'left' => 0, 'width' => 400])
+        ->post(route('checklists.store'), ['name' => 'X', 'theme' => 'enshrouded', 'top' => 0, 'left' => 0, 'width' => 400, 'scale' => 100])
         ->assertSessionHasNoErrors();
+});
+
+test('the size scales the panel on the overlay without changing its on-screen width', function () {
+    $user = User::factory()->create();
+    $checklist = checklistFor($user);
+
+    $this->actingAs($user)
+        ->patch(route('checklists.update', $checklist->id), ['name' => 'Tonight', 'theme' => 'enshrouded', 'top' => 10, 'left' => 20, 'width' => 600, 'scale' => 0])
+        ->assertSessionHasErrors('scale');
+
+    $this->actingAs($user)
+        ->patch(route('checklists.update', $checklist->id), ['name' => 'Tonight', 'theme' => 'enshrouded', 'top' => 10, 'left' => 20, 'width' => 600, 'scale' => 150])
+        ->assertSessionHasNoErrors();
+
+    // Laid out 400px wide, drawn at 1.5×: 600px on screen.
+    $this->get(route('overlay', $user->username))
+        ->assertOk()
+        ->assertSee('width: 400px;', false)
+        ->assertSee('transform: scale(1.5);', false);
 });

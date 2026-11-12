@@ -16,7 +16,7 @@ class ChecklistController extends Controller
     public function create(): View
     {
         return view('checklist', [
-            'checklist' => new Checklist(['name' => '', 'theme' => 'default', 'top' => 80, 'left' => 80, 'width' => 520]),
+            'checklist' => new Checklist(['name' => '', 'theme' => 'default', 'top' => 80, 'left' => 80, 'width' => 520, 'scale' => 100, 'auto_hide' => false]),
             'themes'    => Checklist::themes(),
         ]);
     }
@@ -57,6 +57,17 @@ class ChecklistController extends Controller
     }
 
     /**
+     * Slides the checklist off the overlay if it is showing, or back on if it is hidden.
+     * Only the overlay knows which, so this just tells it to flip.
+     */
+    public function toggleVisibility(int $checklistId): RedirectResponse
+    {
+        ChecklistUpdatedEvent::dispatch($this->find($checklistId), 'toggled');
+
+        return redirect()->route('checklists.show', $checklistId);
+    }
+
+    /**
      * The themed checklist alone, which the overlay fetches when it hears a ChecklistUpdatedEvent.
      */
     public function overlay(string $username, int $checklistId): View
@@ -74,12 +85,16 @@ class ChecklistController extends Controller
 
     private function validated(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'name'  => 'required|string|max:255',
             'theme' => ['required', Rule::in(Checklist::themes())],
             'top'   => 'required|integer',
             'left'  => 'required|integer',
             'width' => 'required|integer|min:100',
+            'scale' => 'required|integer|min:25|max:400',
         ]);
+
+        // An unticked checkbox sends nothing, so read it rather than validate it.
+        return $validated + ['auto_hide' => $request->boolean('auto_hide')];
     }
 }

@@ -47,8 +47,12 @@
         </div>
     @endforeach
     @foreach($checklists as $checklist)
-        <div id="checklist-{{ $checklist->id }}" class="absolute"
-             style="top: {{ $checklist->top }}px; left: {{ $checklist->left }}px; width: {{ $checklist->width }}px;">
+        {{-- Laid out at width / scale, then scaled, so it covers exactly `width` pixels on screen. --}}
+        {{-- Hiding slides it with `translate`, which combines with the transform instead of replacing it. --}}
+        <div id="checklist-{{ $checklist->id }}" class="absolute" data-checklist @if($checklist->auto_hide) data-auto-hide @endif
+             style="top: {{ $checklist->top }}px; left: {{ $checklist->left }}px; width: {{ $checklist->width * 100 / $checklist->scale }}px;
+                    transform: scale({{ $checklist->scale / 100 }}); transform-origin: top left;
+                    transition: translate 900ms cubic-bezier(.65, 0, .35, 1);">
             @include('checklist-themes.' . $checklist->theme, ['checklist' => $checklist])
         </div>
     @endforeach
@@ -103,6 +107,41 @@
             window.setTimeout(resolve, 1000);
         });
 
+        // Hiding: a checklist slides off whichever 1920×1080 edge is nearest. With data-auto-hide it
+        // does so after 45 seconds without changes; any change, or the dashboard toggle, brings it back.
+        const hideAfter = 45000;
+        const slideDuration = 900; // matches the wrapper's translate transition
+        const hideTimers = new Map();
+        const hide = (wrapper) => {
+            window.clearTimeout(hideTimers.get(wrapper));
+            // offsetLeft and offsetTop ignore the slide and the scale; the rect gives the size as drawn.
+            const {width, height} = wrapper.getBoundingClientRect();
+            const left = wrapper.offsetLeft, top = wrapper.offsetTop, margin = 60;
+            const exits = [
+                [left, `${-(left + width + margin)}px 0`],
+                [1920 - left - width, `${1920 - left + margin}px 0`],
+                [top, `0 ${-(top + height + margin)}px`],
+                [1080 - top - height, `0 ${1080 - top + margin}px`],
+            ];
+            wrapper.style.translate = exits.sort((a, b) => a[0] - b[0])[0][1];
+            wrapper.dataset.hidden = '';
+        };
+        const scheduleHide = (wrapper) => {
+            window.clearTimeout(hideTimers.get(wrapper));
+            if (wrapper.hasAttribute('data-auto-hide')) {
+                hideTimers.set(wrapper, window.setTimeout(() => hide(wrapper), hideAfter));
+            }
+        };
+        // Resolves once the checklist is on screen, so a change made while hidden plays where viewers see it.
+        const show = async (wrapper) => {
+            scheduleHide(wrapper);
+            if (!wrapper.hasAttribute('data-hidden')) return;
+            wrapper.style.translate = '';
+            delete wrapper.dataset.hidden;
+            await new Promise((resolve) => window.setTimeout(resolve, slideDuration));
+        };
+        document.querySelectorAll('[data-checklist]').forEach(scheduleHide);
+
         Echo.channel('overlay.{{ $user->id }}')
             .listen('ChecklistUpdatedEvent', async (e) => {
                 const wrapper = document.getElementById(`checklist-${e.checklistId}`);
@@ -111,6 +150,12 @@
                     window.location.reload();
                     return;
                 }
+
+                if (e.action === 'toggled') {
+                    wrapper.hasAttribute('data-hidden') ? show(wrapper) : hide(wrapper);
+                    return;
+                }
+                await show(wrapper);
 
                 if (e.action === 'removed') {
                     const old = wrapper.querySelector(`[data-item-id="${e.itemId}"]`);
@@ -124,11 +169,12 @@
                 const html = await response.text();
 
                 // Slide items that changed place (a move, or the gap a removal leaves) from where they were.
+                // offsetTop is in the panel's own unscaled pixels, the same units translateY uses inside it.
                 const items = () => wrapper.querySelectorAll('[data-item-id]');
-                const before = new Map([...items()].map((node) => [node.dataset.itemId, node.getBoundingClientRect().top]));
+                const before = new Map([...items()].map((node) => [node.dataset.itemId, node.offsetTop]));
                 wrapper.innerHTML = html;
                 items().forEach((node) => {
-                    const delta = before.get(node.dataset.itemId) - node.getBoundingClientRect().top;
+                    const delta = before.get(node.dataset.itemId) - node.offsetTop;
                     if (delta) {
                         node.animate([{transform: `translateY(${delta}px)`}, {transform: 'none'}],
                             {duration: 600, easing: 'cubic-bezier(.2, .8, .2, 1)'});

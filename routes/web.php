@@ -33,6 +33,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/checklist/{checklistId}', 'show')->name('checklists.show');
         Route::patch('/checklist/{checklistId}', 'update')->name('checklists.update');
         Route::post('/checklist/{checklistId}/reset', 'reset')->name('checklists.reset');
+        Route::post('/checklist/{checklistId}/visibility', 'toggleVisibility')->name('checklists.visibility');
     });
 
     Route::controller(\App\Http\Controllers\ChecklistItemController::class)->group(function () {

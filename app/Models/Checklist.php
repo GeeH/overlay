@@ -7,7 +7,12 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Checklist extends Model
 {
-    protected $fillable = ['name', 'theme', 'top', 'left', 'width'];
+    protected $fillable = ['name', 'theme', 'top', 'left', 'width', 'scale', 'auto_hide'];
+
+    protected function casts(): array
+    {
+        return ['auto_hide' => 'boolean'];
+    }
 
     public function items(): HasMany
     {
