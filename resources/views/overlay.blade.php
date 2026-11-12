@@ -46,6 +46,12 @@
             {{ $pane->text }}
         </div>
     @endforeach
+    @foreach($checklists as $checklist)
+        <div id="checklist-{{ $checklist->id }}" class="absolute"
+             style="top: {{ $checklist->top }}px; left: {{ $checklist->left }}px; width: {{ $checklist->width }}px;">
+            @include('checklist-themes.' . $checklist->theme, ['checklist' => $checklist])
+        </div>
+    @endforeach
 </div>
 <script>
     const animateCSS = (element, animation) =>
@@ -86,6 +92,41 @@
                     });
                 }, 5000);
 
+            });
+
+        // Checklists: re-render from the server on every change, then let the theme animate
+        // the item that changed through its is-just-{action} and is-removing classes
+        // (see resources/views/checklist-themes/default.blade.php).
+        const checklistUrl = @js(route('overlay.checklist', ['username' => $user->username, 'checklistId' => '__ID__'], false));
+        const animationDone = (node) => new Promise((resolve) => {
+            node.addEventListener('animationend', resolve, {once: true});
+            window.setTimeout(resolve, 1000);
+        });
+
+        Echo.channel('overlay.{{ $user->id }}')
+            .listen('ChecklistUpdatedEvent', async (e) => {
+                const wrapper = document.getElementById(`checklist-${e.checklistId}`);
+                // A new checklist, or a new position or theme, needs the whole page.
+                if (!wrapper || e.action === 'updated') {
+                    window.location.reload();
+                    return;
+                }
+
+                if (e.action === 'removed') {
+                    const old = wrapper.querySelector(`[data-item-id="${e.itemId}"]`);
+                    if (old) {
+                        old.classList.add('is-removing');
+                        await animationDone(old);
+                    }
+                }
+
+                const response = await fetch(checklistUrl.replace('__ID__', e.checklistId), {cache: 'no-store'});
+                wrapper.innerHTML = await response.text();
+
+                const target = e.action === 'reset'
+                    ? wrapper.querySelector('.checklist')
+                    : wrapper.querySelector(`[data-item-id="${e.itemId}"]`);
+                target?.classList.add(`is-just-${e.action}`);
             });
     });
 </script>

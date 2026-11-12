@@ -53,5 +53,24 @@
             @endforeach
         </ul>
 
+        <div class="mt-10 mb-4 flex items-center justify-between">
+            <h2 class="text-base font-semibold text-gray-900">Checklists</h2>
+            <a href="{{ route('checklists.create') }}"
+               class="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+                + New Checklist
+            </a>
+        </div>
+
+        <ul role="list" class="w-full grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-4">
+            @foreach($checklists as $checklist)
+                <li class="col-span-1 rounded-md border border-gray-200 bg-white shadow-sm">
+                    <a href="{{ route('checklists.show', $checklist->id) }}" class="block px-4 py-2 text-sm hover:bg-gray-50">
+                        <span class="font-medium text-gray-900">{{ $checklist->name }}</span>
+                        <p class="text-gray-500">{{ ucfirst($checklist->theme) }} · {{ $checklist->done_count }} / {{ $checklist->items_count }} done</p>
+                    </a>
+                </li>
+            @endforeach
+        </ul>
+
     </div>
 </x-app-layout>

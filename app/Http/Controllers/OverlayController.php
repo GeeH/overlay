@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Checklist;
 use App\Models\Pane;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -18,6 +19,15 @@ class OverlayController extends Controller
         $panes = Pane::where('user_id', '=', $user->id)
             ->get();
 
-        return view('overlay', ['user' => $user, 'panes' => $panes, 'debug' => $request->get('debug', false) !== false]);
+        $checklists = Checklist::where('user_id', '=', $user->id)
+            ->with('items')
+            ->get();
+
+        return view('overlay', [
+            'user' => $user,
+            'panes' => $panes,
+            'checklists' => $checklists,
+            'debug' => $request->get('debug', false) !== false,
+        ]);
     }
 }

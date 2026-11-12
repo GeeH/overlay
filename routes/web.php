@@ -26,10 +26,26 @@ Route::middleware('auth')->group(function () {
         ->name('add-edit-pane');
     Route::patch('/pane/{paneId}/edit', [\App\Http\Controllers\AddEditPaneController::class, 'update'])
         ->name('update-pane');
+
+    Route::controller(\App\Http\Controllers\ChecklistController::class)->group(function () {
+        Route::get('/checklist/create', 'create')->name('checklists.create');
+        Route::post('/checklist', 'store')->name('checklists.store');
+        Route::get('/checklist/{checklistId}', 'show')->name('checklists.show');
+        Route::patch('/checklist/{checklistId}', 'update')->name('checklists.update');
+        Route::post('/checklist/{checklistId}/reset', 'reset')->name('checklists.reset');
+    });
+
+    Route::controller(\App\Http\Controllers\ChecklistItemController::class)->group(function () {
+        Route::post('/checklist/{checklistId}/items', 'store')->name('checklists.items.store');
+        Route::patch('/checklist/{checklistId}/items/{itemId}/toggle', 'toggle')->name('checklists.items.toggle');
+        Route::delete('/checklist/{checklistId}/items/{itemId}', 'destroy')->name('checklists.items.destroy');
+    });
 });
 
 Route::get('/{username}/overlay', \App\Http\Controllers\OverlayController::class)
     ->name('overlay');
+Route::get('/{username}/overlay/checklist/{checklistId}', [\App\Http\Controllers\ChecklistController::class, 'overlay'])
+    ->name('overlay.checklist');
 
 Route::prefix('/api')
     ->group(function () {
