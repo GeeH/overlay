@@ -34,6 +34,32 @@ class ChecklistItemController extends Controller
         return redirect()->route('checklists.show', $checklistId);
     }
 
+    /**
+     * Swaps the item with its neighbour above or below, then renumbers every item
+     * so positions stay unique.
+     */
+    public function move(Request $request, int $checklistId, int $itemId): RedirectResponse
+    {
+        $checklist = $this->find($checklistId);
+        $direction = $request->validate(['direction' => 'required|in:up,down'])['direction'];
+
+        $items = $checklist->items()->get()->values();
+        $index = $items->search(fn ($item) => $item->id === $itemId);
+        abort_if($index === false, 404);
+
+        $target = $direction === 'up' ? $index - 1 : $index + 1;
+        if ($target >= 0 && $target < $items->count()) {
+            $ordered = $items->all();
+            [$ordered[$index], $ordered[$target]] = [$ordered[$target], $ordered[$index]];
+            foreach ($ordered as $position => $item) {
+                $item->update(['position' => $position + 1]);
+            }
+            ChecklistUpdatedEvent::dispatch($checklist, 'moved', $itemId);
+        }
+
+        return redirect()->route('checklists.show', $checklistId);
+    }
+
     public function destroy(int $checklistId, int $itemId): RedirectResponse
     {
         $checklist = $this->find($checklistId);

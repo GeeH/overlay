@@ -83,7 +83,8 @@
     }
     .cl-enshrouded li.is-done .cl-text { color: #8f8672; text-decoration: line-through; text-decoration-color: rgba(226, 194, 125, 0.7); text-decoration-thickness: 2px; }
 
-    .cl-enshrouded li.is-just-done::before {
+    .cl-enshrouded li.is-just-done::before,
+    .cl-enshrouded li.is-just-moved::before {
         content: ''; position: absolute; inset: 0; pointer-events: none;
         background: linear-gradient(90deg, transparent, rgba(255, 138, 61, 0.35), transparent);
         animation: cl-ens-sweep 900ms ease-out forwards;

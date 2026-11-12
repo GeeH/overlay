@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
     Route::controller(\App\Http\Controllers\ChecklistItemController::class)->group(function () {
         Route::post('/checklist/{checklistId}/items', 'store')->name('checklists.items.store');
         Route::patch('/checklist/{checklistId}/items/{itemId}/toggle', 'toggle')->name('checklists.items.toggle');
+        Route::patch('/checklist/{checklistId}/items/{itemId}/move', 'move')->name('checklists.items.move');
         Route::delete('/checklist/{checklistId}/items/{itemId}', 'destroy')->name('checklists.items.destroy');
     });
 });

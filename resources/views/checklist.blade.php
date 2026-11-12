@@ -39,6 +39,18 @@
                                     <span @class(['text-gray-400 line-through' => $item->done, 'text-gray-900' => ! $item->done])>{{ $item->text }}</span>
                                 </button>
                             </form>
+                            <form method="POST" action="{{ route('checklists.items.move', [$checklist->id, $item->id]) }}" class="flex">
+                                @csrf
+                                @method('PATCH')
+                                @php($moves = ['up' => ['M5 12.5l5-5 5 5', $loop->first], 'down' => ['M5 7.5l5 5 5-5', $loop->last]])
+                                @foreach($moves as $direction => [$path, $disabled])
+                                    <button type="submit" name="direction" value="{{ $direction }}" @disabled($disabled)
+                                            class="rounded p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-900 disabled:invisible" title="Move {{ $direction }}">
+                                        <span class="sr-only">Move {{ $item->text }} {{ $direction }}</span>
+                                        <svg class="h-6 w-6" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="{{ $path }}"/></svg>
+                                    </button>
+                                @endforeach
+                            </form>
                             <form method="POST" action="{{ route('checklists.items.destroy', [$checklist->id, $item->id]) }}" class="pr-3">
                                 @csrf
                                 @method('DELETE')

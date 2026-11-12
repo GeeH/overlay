@@ -7,7 +7,8 @@
     and scope its CSS under its own root class, because several themes can share the overlay page.
 
     The overlay re-renders the theme after every change and then adds one class for a theme to animate:
-      - is-just-done, is-just-undone, is-just-added on the item that changed
+      - is-just-done, is-just-undone, is-just-added, is-just-moved on the item that changed
+        (the overlay itself slides moved items into place, so is-just-moved is only for extra flair)
       - is-just-reset on the root after every item was unticked
       - is-removing on an item about to be deleted (the overlay waits for its animation to end)
 --}}
@@ -45,6 +46,7 @@
     .cl-default li.is-just-done { animation: cl-default-flash 900ms ease-out; }
     .cl-default li.is-just-done .cl-box { animation: cl-default-pop 500ms cubic-bezier(.2, 1.6, .4, 1); }
     .cl-default li.is-just-undone { animation: cl-default-nudge 400ms ease-in-out; }
+    .cl-default li.is-just-moved { animation: cl-default-flash 900ms ease-out; }
     .cl-default li.is-just-added { animation: cl-default-in 500ms cubic-bezier(.2, .8, .2, 1); }
     .cl-default li.is-removing { animation: cl-default-out 400ms ease-in forwards; }
     .cl-default.is-just-reset { animation: cl-default-nudge 500ms ease-in-out; }

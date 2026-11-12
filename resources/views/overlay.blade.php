@@ -121,7 +121,19 @@
                 }
 
                 const response = await fetch(checklistUrl.replace('__ID__', e.checklistId), {cache: 'no-store'});
-                wrapper.innerHTML = await response.text();
+                const html = await response.text();
+
+                // Slide items that changed place (a move, or the gap a removal leaves) from where they were.
+                const items = () => wrapper.querySelectorAll('[data-item-id]');
+                const before = new Map([...items()].map((node) => [node.dataset.itemId, node.getBoundingClientRect().top]));
+                wrapper.innerHTML = html;
+                items().forEach((node) => {
+                    const delta = before.get(node.dataset.itemId) - node.getBoundingClientRect().top;
+                    if (delta) {
+                        node.animate([{transform: `translateY(${delta}px)`}, {transform: 'none'}],
+                            {duration: 600, easing: 'cubic-bezier(.2, .8, .2, 1)'});
+                    }
+                });
 
                 const target = e.action === 'reset'
                     ? wrapper.querySelector('.checklist')

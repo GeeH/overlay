@@ -42,6 +42,30 @@ test('ticking an item updates the overlay', function () {
     Event::assertDispatched(ChecklistUpdatedEvent::class, fn ($event) => $event->action === 'undone');
 });
 
+test('moving an item reorders the overlay', function () {
+    Event::fake([ChecklistUpdatedEvent::class]);
+    $user = User::factory()->create();
+    $checklist = checklistFor($user);
+    $last = $checklist->items()->create(['text' => 'Craft a Glider', 'position' => 3]);
+    $first = $checklist->items()->where('position', 1)->first();
+
+    $this->actingAs($user)->patch(route('checklists.items.move', [$checklist->id, $last->id]), ['direction' => 'up']);
+    $this->get(route('overlay.checklist', [$user->username, $checklist->id]))
+        ->assertSeeInOrder(['Find the Flame Altar', 'Craft a Glider', 'Beat the Fell Thunderbrute']);
+    Event::assertDispatched(ChecklistUpdatedEvent::class, fn ($event) => $event->action === 'moved' && $event->itemId === $last->id);
+
+    $this->actingAs($user)->patch(route('checklists.items.move', [$checklist->id, $first->id]), ['direction' => 'down']);
+    $this->get(route('overlay.checklist', [$user->username, $checklist->id]))
+        ->assertSeeInOrder(['Craft a Glider', 'Find the Flame Altar', 'Beat the Fell Thunderbrute']);
+
+    // Moving the top item up changes nothing and tells the overlay nothing.
+    Event::fake([ChecklistUpdatedEvent::class]);
+    $this->actingAs($user)->patch(route('checklists.items.move', [$checklist->id, $last->id]), ['direction' => 'up']);
+    $this->get(route('overlay.checklist', [$user->username, $checklist->id]))
+        ->assertSeeInOrder(['Craft a Glider', 'Find the Flame Altar', 'Beat the Fell Thunderbrute']);
+    Event::assertNotDispatched(ChecklistUpdatedEvent::class);
+});
+
 test('another user cannot change a checklist', function () {
     $owner = User::factory()->create();
     $checklist = checklistFor($owner);
