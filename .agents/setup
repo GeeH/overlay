@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Prepares a fresh Amp orb: PHP 8.4 + Composer, Composer and npm dependencies,
+# .env, and a migrated, seeded SQLite database. Must stay idempotent.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+step() {
+  local name="$1"
+  shift
+  local start=$SECONDS
+  echo "==> ${name}"
+  "$@"
+  echo "<== ${name} ($((SECONDS - start))s)"
+}
+
+apt_packages=(
+  php8.4-cli php8.4-bcmath php8.4-curl php8.4-intl php8.4-mbstring
+  php8.4-sqlite3 php8.4-xml php8.4-zip composer unzip
+)
+
+install_system_packages() {
+  local missing=()
+  for pkg in "${apt_packages[@]}"; do
+    dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q 'install ok installed' || missing+=("$pkg")
+  done
+  if ((${#missing[@]})); then
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends "${missing[@]}"
+  else
+    echo "all system packages present"
+  fi
+}
+
+install_composer_deps() {
+  composer install --no-interaction --no-progress --prefer-dist
+}
+
+install_npm_deps() {
+  npm ci --no-audit --no-fund --prefer-offline
+}
+
+prepare_env() {
+  [ -f .env ] || cp -- .env.example .env
+  grep -q '^APP_KEY=base64:' .env || php artisan key:generate --ansi --no-interaction
+}
+
+prepare_database() {
+  [ -f database/database.sqlite ] || touch database/database.sqlite
+  php artisan migrate --force --no-interaction
+  # Seeders truncate tables, so only seed an empty database.
+  if [ "$(php artisan tinker --execute='echo App\Models\User::count();' 2>/dev/null | tail -n1)" = "0" ]; then
+    php artisan db:seed --force --no-interaction
+  fi
+}
+
+step "system packages" install_system_packages
+step "composer install" install_composer_deps
+step "npm ci" install_npm_deps
+step ".env" prepare_env
+step "database" prepare_database
+
+mkdir -p "$HOME/.config/amp"
+guidance_marker="# overlay orb notes"
+if ! grep -Fqx "$guidance_marker" "$HOME/.config/amp/AGENTS.md" 2>/dev/null; then
+  cat >> "$HOME/.config/amp/AGENTS.md" <<'EOF'
+
+# overlay orb notes
+- PHP 8.4 and Composer come from Debian packages; run the app directly, not through Sail/Docker (the Makefile targets use Sail and do not work in orbs).
+- Database is SQLite at database/database.sqlite, migrated and seeded. Seeded login: gary@roave.com / password.
+- Tests: `DB_DATABASE=:memory: php artisan test` (Pest). Without the override, phpunit.xml's DB_DATABASE=testing makes SQLite create a stray ./testing file. Assets: `npm run build`, or `npm run dev` for Vite.
+EOF
+fi
